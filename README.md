@@ -1,14 +1,13 @@
 # setup-docean-studio
 
-Instructions + helper scripts for running **Imbue Studio on your own VPS cloud** —
-a linux "webtop" running the open-source Imbue Studio desktop app (reachable from
-your browser), driving workspace "slices" that run as nested-KVM VMs on your own
-DigitalOcean droplets. No cloud account is needed for compute: the workspaces live
-on your own nested-KVM hosts, reached over SSH.
+Run [Imbue Studio](https://imbue.com/product/studio) on your own DigitalOcean droplets.
 
-What you end up with: a browser-openable desktop running Imbue Studio, with a set of
-workspace slices listed in it that you can click into — each a full workspace
-(chat, terminal, files, browser) running on your own VPS.
+A browser-open desktop app drives workspace "slices" — nested-KVM VMs that each
+run a full workspace: chat, terminal, files, browser. No cloud account for
+compute. The workspaces live on your own hosts, reached over SSH.
+
+Built on the open-source [mngr](https://github.com/imbue-ai/mngr) agent host and
+the `docean_cloud` libvirt provider (vendored in [`provider/`](provider/)).
 
 ## Prerequisites
 
