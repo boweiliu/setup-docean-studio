@@ -1,0 +1,25 @@
+[project]
+name = "imbue-mngr-bowei-cloud"
+version = "0.1.0"
+description = "bowei_cloud provider backend for mngr: nested-KVM/libvirt VMs on a single host"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "imbue-mngr",
+    "imbue-mngr-vps",
+]
+
+[project.entry-points.mngr]
+bowei_cloud = "imbue.mngr_bowei_cloud.backend"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.sources]
+imbue-mngr = { workspace = true }
+imbue-mngr-vps = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["imbue"]
+exclude = ["*_test.py", "test_*.py", "**/conftest.py", "**/testing.py"]

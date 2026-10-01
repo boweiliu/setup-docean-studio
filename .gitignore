@@ -1,0 +1,21 @@
+# secrets / local config
+.env
+*.key
+*_ssh_key*
+container_ssh_key*
+known_hosts*
+host_keys/
+
+# filled-in inventory (templates are tracked; your real one is not)
+inventory/INVENTORY.txt
+inventory/ports.txt
+
+# logs / scratch
+*.log
+/tmp/
+.DS_Store
+
+# python (provider venv if built locally)
+__pycache__/
+*.pyc
+.venv/
