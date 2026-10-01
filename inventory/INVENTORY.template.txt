@@ -1,0 +1,7 @@
+# fill in per deployment
+# droplets:
+#   <name>  <size>  <droplet-id>  pub=<ip>  priv=<ip>  role=<kvm-host|webtop>
+# slices:
+#   <slice-name>  <kvm-host-pub-ip>:<dnat-port>  -> <vm-ip>:2222  (latchkey host-<id>)
+# webtop:
+#   https://[<ipv6>]:<random-port>/vnc.html  (VNC password: <pw>)

@@ -1,0 +1,2 @@
+# per-VM DNAT port assignment (unique public port per slice -> VM:2222)
+# <slice>  <kvm-host-pub-ip>:<port>
