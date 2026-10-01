@@ -42,5 +42,7 @@ MNGR_HOST_DIR=/root/.mngr MNGR_PREFIX=minds- ssh root@"$PUB" \
 - **`vm_disk_gb=80`, `outer_disk_reserved_gb=30`** — the dwt Dockerfile build needs
   ~15-20G of docker headroom on the VM root fs; the defaults (40/5) fail with "No
   space left on device" at `RUN mv /home/user/workspace /docker_build_code`.
-- **Nested KVM** — only DO dedicated-CPU sizes (`g-*`, `s-*-amd`) have it; shared
-  CPU does not. Always `ls /dev/kvm` after spawn.
+- **Nested KVM** — DO exposes nested KVM on General Purpose (`g-*`) and on
+  Basic/Premium AMD (`s-*-amd`) — verified on `s-2vcpu-8gb-amd`, `s-4vcpu-16gb-amd`,
+  `s-8vcpu-32gb-amd`. The tiny shared `s-1vcpu-*` / `s-2vcpu-2gb` sizes do NOT.
+  Always `ls /dev/kvm` after spawn to confirm.

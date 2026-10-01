@@ -3,35 +3,68 @@
 # slice's container SSH key + sshd host key, add an ssh-provider host entry per
 # slice to the app's settings.toml, then (optionally) latchkey + sharing + welcome.
 #
-# This is a thin automation of runbooks 04a/04b + 05. The app's web API
-# (MINDS_API_KEY) is used for the account association + sharing; latchkey uses
-# the app's latchkey dir + binary. Run on the CLIENT machine (the webtop or your
-# desktop) where the Imbue Studio app runs.
+# Works on macOS (your desktop) AND Linux (the webtop) — paths auto-detected.
+# Run on the CLIENT machine where the Imbue Studio app runs.
 #
 #   wire-client.sh <slice-map-file> [--latchkey] [--share] [--welcome]
+#   wire-client.sh --env-hints        # print the env vars it uses + exit
+#
 #   slice-map-file: lines of "<slice-name> <kvm-host-pub-ip> <dnat-port> <kvm-host-ssh-key-path>"
 #     (the <kvm-host-ssh-key-path> is the path ON the KVM host to the slice's
 #      container_ssh_key; this script scp's it down to the client.)
-#
-# Env: MINDS_HOME (app data dir), MINDS_API_KEY (Bearer for /api/v1), LATCHKEY_DIR,
-#      LATCHKEY_BIN, MINDS_ELECTRON_EXEC_PATH. Discover with `wire-client.sh --env-hints`.
 set -euo pipefail
-MAPFILE="${1:?usage: wire-client.sh <slice-map-file> [--latchkey|--share|--welcome]}"
+
+# --- platform-aware defaults (macOS vs Linux) ---
+case "$(uname)" in
+  Darwin)
+    MH_DEFAULT="$HOME/Library/Application Support/Imbue Studio/production"
+    LOG_DEFAULT="$HOME/Library/Logs/Imbue Studio/production/minds-events.jsonl"
+    LATCHBIN_DEFAULT="/Applications/Mind-070.app/Contents/Resources/latchkey/bin/latchkey"
+    ELECTRON_DEFAULT="/Applications/Mind-070.app/Contents/MacOS/Imbue Studio" ;;
+  Linux)
+    MH_DEFAULT="$HOME/.minds"
+    LOG_DEFAULT="$HOME/.minds/logs/minds-events.jsonl"
+    LATCHBIN_DEFAULT="$HOME/mngr/apps/minds/node_modules/.bin/latchkey"
+    ELECTRON_DEFAULT="$HOME/mngr/apps/minds/node_modules/.bin/electron" ;;
+  *) echo "unsupported platform: $(uname)" >&2; exit 2 ;;
+esac
+
+MH="${MINDS_HOME:-$MH_DEFAULT}"
+[ -d "$MH/mngr" ] || MH="$HOME/.minds"   # fallback (0.7.x / other Linux layouts)
+LOG="${MINDS_LOG:-$LOG_DEFAULT}"
+PROF="$(ls "$MH/mngr/profiles" | head -1)"
+SET="$MH/mngr/profiles/$PROF/settings.toml"
+KEYBASE="$MH/mngr/profiles/$PROF/providers/docean_cloud/docean_cloud/keys/host_keys"
+KH="$MH/mngr/profiles/$PROF/providers/docean_cloud/known_hosts_docean"
+MN="$MH/.venv/bin/mngr"
+LATCHDIR="${LATCHKEY_DIR:-$MH/latchkey}"
+LATCHBIN="${LATCHKEY_BIN:-$LATCHBIN_DEFAULT}"
+export MNGR_HOST_DIR="$MH/mngr" MNGR_PREFIX=minds-
+export MINDS_ELECTRON_EXEC_PATH="${MINDS_ELECTRON_EXEC_PATH:-$ELECTRON_DEFAULT}"
+
+# --- --env-hints: print the env vars + exit ---
+if [ "${1:-}" = "--env-hints" ]; then
+  cat <<EOF
+wire-client.sh env vars (override as needed; defaults shown):
+  MINDS_HOME=$MH
+  MINDS_LOG=$LOG
+  LATCHKEY_DIR=$LATCHDIR
+  LATCHKEY_BIN=$LATCHBIN
+  MINDS_ELECTRON_EXEC_PATH=$MINDS_ELECTRON_EXEC_PATH
+  MINDS_API_KEY=<Bearer for /api/v1; grab from the running app's env:
+                 LATCHKEY_EXTENSION_MINDS_API_KEY on the Electron process>
+  MINDS_PORT=<the 'minds run --port'; auto-detected if unset>
+  SHARE_ACCOUNT=<your imbue cloud email, required for --share>
+EOF
+  exit 0
+fi
+
+MAPFILE="${1:?usage: wire-client.sh <slice-map-file> [--latchkey|--share|--welcome] (or --env-hints)}"
 shift || true
 DO_LATCHKEY=0; DO_SHARE=0; DO_WELCOME=0
 for a in "$@"; do
   case "$a" in --latchkey) DO_LATCHKEY=1;; --share) DO_SHARE=1;; --welcome) DO_WELCOME=1;; esac
 done
-
-# --- discover the app's mngr home + profile (0.8.x data dir) ---
-MH="${MINDS_HOME:-$HOME/Library/Application Support/Imbue Studio/production}"
-[ -d "$MH/mngr" ] || MH="$HOME/.minds"   # 0.7.x fallback
-PROF="$(ls "$MH/mngr/profiles" | head -1)"
-SET="$MH/mngr/profiles/$PROF/settings.toml"
-KEYBASE="$MH/mngr/profiles/$PROF/providers/docean_cloud/docean_cloud/keys/host_keys"
-KH="$MH/mngr/profiles/$PROF/providers/docean_cloud/known_hosts_bw_do"
-MN="$MH/.venv/bin/mngr"
-export MNGR_HOST_DIR="$MH/mngr" MNGR_PREFIX=minds-
 
 echo "==> copying container keys + known_hosts + ssh-provider entries"
 mkdir -p "$KEYBASE"; : > "$KH"
@@ -60,12 +93,26 @@ PY
 done
 echo "==> restart the Imbue Studio app to pick up the new providers"
 
+# Build a name -> (agent_id, host_id) map from the app's own discovery (robust;
+# no forward-log grepping). host_id here IS the latchkey ssh-provider host id.
+# Cached once; agent_host_id reads the cache.
+"$MN" list --format jsonl 2>/dev/null > /tmp/wc-list.jsonl || true
+agent_host_id() {  # $1 = slice name -> prints "aid hid"
+  python3 -c "
+import json,sys
+want=sys.argv[1]
+for l in open('/tmp/wc-list.jsonl'):
+    try:
+        d=json.loads(l)
+        if d.get('name')=='system-services' and d.get('labels',{}).get('workspace_display_name')==want:
+            print(d['id'], d['host']['id'] if isinstance(d.get('host'),dict) else d.get('host_id','')); raise SystemExit(0)
+    except: pass
+" "$1"
+}
+
 # --- latchkey (Part D): link permissions + inject env + restart supervisord ---
 if [ "$DO_LATCHKEY" = 1 ]; then
   echo "==> latchkey: link permissions + inject env (per slice)"
-  LATCHDIR="${LATCHKEY_DIR:-$MH/latchkey}"
-  LATCHBIN="${LATCHKEY_BIN:-/Applications/Mind-070.app/Contents/Resources/latchkey/bin/latchkey}"
-  export MINDS_ELECTRON_EXEC_PATH="${MINDS_ELECTRON_EXEC_PATH:-/Applications/Mind-070.app/Contents/MacOS/Imbue Studio}"
   TMP=/tmp/mngr-latchkey-tmp; mkdir -p "$TMP"; echo -e '[plugins.latchkey]\nenabled=true' > "$TMP/settings.toml"
   MNGR_HOST_DIR="$TMP" MNGR_PROFILE=_ "$MN" latchkey create-agent-env --gateway-location DESKTOP \
     --latchkey-directory "$LATCHDIR" --latchkey-binary "$LATCHBIN" > /tmp/lk-env.json
@@ -73,18 +120,16 @@ if [ "$DO_LATCHKEY" = 1 ]; then
   ENVJSON=$(python3 -c "import json;d=json.load(open('/tmp/lk-env.json'))['env'];print('\n'.join(f'{k}={v}' for k,v in d.items()))")
   grep -vE '^\s*(#|$)' "$MAPFILE" | while IFS=' ' read -r name ip port kpath; do
     [ -z "$name" ] && continue
-    hid=$(basename "$(dirname "$kpath")")
-    # latchkey host id = the ssh-provider uuid5("docean-cloud:<name>"); find it in the forward log
-    SSHID=$(grep -oE "agent-[0-9a-f]+ on host host-[0-9a-f]+" "$HOME/Library/Logs/Imbue Studio/production/minds-events.jsonl" 2>/dev/null | head -1 | grep -oE "host-[0-9a-f]+")
-    [ -z "$SSHID" ] && { echo "  $name: could not resolve latchkey host id (open the workspace in the app first)"; continue; }
-    MNGR_HOST_DIR="$TMP" MNGR_PROFILE=_ "$MN" latchkey link-permissions --host-id "$SSHID" --opaque-path "$OPAQUE" \
+    read -r aid hid < <(agent_host_id "$name")
+    [ -z "$hid" ] && { echo "  $name: open it in the app first so discovery returns a host id"; continue; }
+    MNGR_HOST_DIR="$TMP" MNGR_PROFILE=_ "$MN" latchkey link-permissions --host-id "$hid" --opaque-path "$OPAQUE" \
       --latchkey-directory "$LATCHDIR" --latchkey-binary "$LATCHBIN" >/dev/null
     "$MN" exec system-services@${name}.docean-cloud "
       grep -v '^LATCHKEY_' /mngr/env > /tmp/e 2>/dev/null || true; printf '%s\n' '$ENVJSON' >> /tmp/e; mv /tmp/e /mngr/env
       cd /home/user/workspace; set -a; . /mngr/env; set +a
       nohup setsid supervisord -n -c system/supervisord.conf >/var/log/supervisord.log 2>&1 </dev/null & sleep 7
       echo running=\$(supervisorctl status 2>/dev/null|grep -c RUNNING)" 2>&1 | grep -E "running=|Error" | head -1
-    echo "  $name: latchkey linked + env injected"
+    echo "  $name: latchkey linked + env injected (host $hid)"
   done
 fi
 
@@ -94,23 +139,16 @@ if [ "$DO_SHARE" = 1 ]; then
   : "${SHARE_ACCOUNT:?need SHARE_ACCOUNT email, e.g. you@imbue.com}"
   PORT="${MINDS_PORT:-$(pgrep -f 'bin/minds -v' | head -1 | xargs -I{} ps -o command= -p {} 2>/dev/null | grep -oE -- '--port [0-9]+' | awk '{print $2}')}"
   echo "==> sharing: associate $SHARE_ACCOUNT + share (per slice) on port $PORT"
-  "$MN" list --format jsonl 2>/dev/null > /tmp/wc-list.jsonl
   grep -vE '^\s*(#|$)' "$MAPFILE" | while IFS=' ' read -r name ip port kpath; do
     [ -z "$name" ] && continue
-    aid=$(python3 -c "
-import json
-for l in open('/tmp/wc-list.jsonl'):
-    d=json.loads(l)
-    if d.get('name')=='system-services' and d.get('labels',{}).get('workspace_display_name')=='$name': print(d['id']); break
-" 2>/dev/null)
-    [ -z "$aid" ] && continue
+    read -r aid hid < <(agent_host_id "$name")
+    [ -z "$aid" ] && { echo "  $name: not discovered yet (open the app)"; continue; }
     curl -s -o /dev/null -X PATCH "http://127.0.0.1:$PORT/api/v1/workspaces/$aid" \
       -H "Authorization: Bearer $MINDS_API_KEY" -H "Content-Type: application/json" \
-      -d "{\"account_id\":\"$SHARE_ACCOUNT\"}" -w "associate $name: %{http_code}\n"
-    hid=$(grep -oE "host-[0-9a-f]+" "$HOME/Library/Logs/Imbue Studio/production/minds-events.jsonl" 2>/dev/null | head -1)
+      -d "{\"account_id\":\"$SHARE_ACCOUNT\"}" -w "  associate $name: %{http_code}\n"
     curl -s -o /dev/null -X PUT "http://127.0.0.1:$PORT/api/v1/machines/$hid/sharing" \
       -H "Authorization: Bearer $MINDS_API_KEY" -H "Content-Type: application/json" \
-      -d "{\"workspace\":{\"emails\":[\"$SHARE_ACCOUNT\"]},\"services\":{}}" -w "share $name: %{http_code}\n"
+      -d "{\"workspace\":{\"emails\":[\"$SHARE_ACCOUNT\"]},\"services\":{}}" -w "  share $name: %{http_code}\n"
   done
 fi
 

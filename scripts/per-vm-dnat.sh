@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Per-VM DNAT on a KVM host: a unique public port per slice VM -> VM:2222 (the
-# container sshd), restricted to ALLOW_SOURCES (your IP by default). Multi-VM
-# (does NOT flush — adds one rule per VMxsource), persisted across reboot via a
-# systemd oneshot. This is what lets a REMOTE client (your desktop) reach every
-# slice on a host at once.
+# container sshd), restricted to ALLOW_SOURCES (your IP by default). Multi-VM:
+# flushes + rebuilds from the port-map each run (idempotent — pass the FULL map of
+# all slices every run, or stale rules for omitted VMs get flushed away),
+# persisted across reboot via a systemd oneshot. This is what lets a REMOTE client
+# (your desktop) reach every slice on a host at once.
 #
 #   per-vm-dnat.sh <kvm-host-ip> <port-map-file> [allow-sources...]
 #   port-map-file: lines of "<pub_port> <vm_ip>"  e.g. "23001 192.168.122.174"

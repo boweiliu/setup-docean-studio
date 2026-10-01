@@ -27,7 +27,7 @@ pub=sys.argv[1]
 d=json.load(sys.stdin)
 for k in d.get('ssh_keys',[]):
     if k.get('public_key','').split()[:2]==pub.split()[:2]:
-        print(k['id']); return
+        print(k['id']); raise SystemExit(0)
 print('no DO key matches local pubkey', file=sys.stderr); raise SystemExit(1)
 " "$pub"
 }
@@ -40,13 +40,19 @@ region=sys.argv[1]
 d=json.load(sys.stdin)
 for v in d.get('vpcs',[]):
     if v.get('region')==region and v.get('name')==f'default-{region}':
-        print(v['id']); return
+        print(v['id']); raise SystemExit(0)
 print(f'no default VPC for {region}', file=sys.stderr); raise SystemExit(1)
 " "$DO_REGION"
 }
 
-DO_SSH_KEY_ID="${DO_SSH_KEY_ID:-$(do_resolve_ssh_key_id)}"
-DO_VPC_UUID="${DO_VPC_UUID:-$(do_resolve_vpc)}"
+# The VPC's private CIDR (e.g. 10.124.0.0/20) — for cross-VPC nft rules.
+do_vpc_cidr() {
+  : "${DO_VPC_UUID:?set DO_VPC_UUID or run do_resolve_vpc first}"
+  do_api "https://api.digitalocean.com/v2/vpcs/$DO_VPC_UUID" | python3 -c "
+import json,sys
+print(json.load(sys.stdin)['vpc']['ip_range'])
+"
+}
 
 # Detect your public egress IP (for restricted DNAT / VNC allow).
 do_my_ip() { curl -s --max-time 6 ifconfig.me || curl -s --max-time 6 https://api.ipify.org; }
@@ -60,6 +66,8 @@ do_latest_tag() {
 # do_spawn <name> <size>  -> prints "id pub_ip priv_ip", waits for SSH.
 do_spawn() {
   local name="$1" size="$2"
+  : "${DO_SSH_KEY_ID:=$(do_resolve_ssh_key_id)}"   # lazy: only resolve when spawning
+  : "${DO_VPC_UUID:=$(do_resolve_vpc)}"
   local body
   body=$(cat <<EOF
 {"name":"$name","region":"$DO_REGION","size":"$size","image":"ubuntu-24-04-x64",

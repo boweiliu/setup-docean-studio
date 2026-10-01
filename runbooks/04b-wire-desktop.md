@@ -24,7 +24,7 @@ your imbue cloud account (used only for sharing/relays, not compute).
 ## Verify
 
 ```bash
-MINDS_HOME="$HOME/Library/Application Support/Imbue Studio/production"   # 0.8.x
+MINDS_HOME="$HOME/Library/Application Support/Imbue Studio/production"   # macOS 0.8.x (Linux: ~/.minds)
 MNGR_HOST_DIR="$MINDS_HOME/mngr" MNGR_PREFIX=minds- "$MINDS_HOME/.venv/bin/mngr" list
 # expect: each slice listed as docean-cloud RUNNING
 nc -z -w5 "$KVM_PUB" 23001   # your DNAT'd port, from your IP
@@ -47,5 +47,5 @@ Then in the app: click a slice → lands past "loading workspace".
 - **`MINDS_API_KEY`** (for the `--share` web-API calls) is per-`minds run`,
   in-memory; grab it from the running app's env (`LATCHKEY_EXTENSION_MINDS_API_KEY`
   on the Electron process) — it's the Bearer token for `/api/v1`.
-- **0.8.x data dir** — `~/Library/Application Support/Imbue Studio/production`
-  (macOS); the script auto-detects it (falls back to `~/.minds` on 0.7.x).
+- **0.8.x data dir** — macOS: `~/Library/Application Support/Imbue Studio/production`;
+  Linux (the webtop): `~/.minds`. `wire-client.sh` auto-detects via `uname`.
