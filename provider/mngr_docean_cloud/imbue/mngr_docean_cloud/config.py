@@ -9,8 +9,8 @@ from imbue.mngr_vps.config import VpsProviderConfig
 DEFAULT_BASE_IMAGE = "/var/lib/libvirt/images/ubuntu-24.04-server-cloudimg-amd64.img"
 
 
-class BoweiCloudProviderConfig(VpsProviderConfig):
-    """Configuration for the bowei_cloud (nested-KVM/libvirt) VPS provider.
+class DoceanCloudProviderConfig(VpsProviderConfig):
+    """Configuration for the docean_cloud (nested-KVM/libvirt) VPS provider.
 
     No API credentials are needed: the "cloud" is the local libvirt daemon on
     the host running mngr. VMs are attached to a libvirt network (the default
@@ -18,8 +18,8 @@ class BoweiCloudProviderConfig(VpsProviderConfig):
     """
 
     backend: ProviderBackendName = Field(
-        default=ProviderBackendName("bowei_cloud"),
-        description="Provider backend (always 'bowei_cloud' for this type)",
+        default=ProviderBackendName("docean_cloud"),
+        description="Provider backend (always 'docean_cloud' for this type)",
     )
     base_image: Path = Field(
         default=Path(DEFAULT_BASE_IMAGE),
@@ -29,7 +29,7 @@ class BoweiCloudProviderConfig(VpsProviderConfig):
         ),
     )
     images_dir: Path = Field(
-        default=Path("/var/lib/libvirt/images/bowei_cloud"),
+        default=Path("/var/lib/libvirt/images/docean_cloud"),
         description=(
             "Directory holding per-VM qcow2 disk overlays, NoCloud seed ISOs and "
             "the instance registry JSON."

@@ -1,4 +1,4 @@
-"""libvirt-backed ``VpsClient`` for the bowei_cloud provider.
+"""libvirt-backed ``VpsClient`` for the docean_cloud provider.
 
 Each "VPS" is a KVM virtual machine on the local libvirt daemon, attached to a
 libvirt network (the default NAT network by default). The VM is reached over
@@ -38,7 +38,7 @@ _DOMAIN_NAME_RE = re.compile(r"[^a-zA-Z0-9._-]")
 
 def _run(cmd: Sequence[str], timeout: float = 120.0) -> str:
     """Run a command, returning stdout. Raise VpsApiError on non-zero exit."""
-    logger.trace("bowei_cloud run: {}", " ".join(cmd))
+    logger.trace("docean_cloud run: {}", " ".join(cmd))
     try:
         result = subprocess.run(list(cmd), capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired as e:
@@ -65,7 +65,7 @@ def _parse_plan(plan: str) -> tuple[int, int]:
     m = re.fullmatch(r"\s*(\d+)c(\d+)g\s*", plan)
     if m:
         return int(m.group(1)), int(m.group(2)) * 1024
-    logger.warning("bowei_cloud: could not parse plan {!r}, defaulting to {}c{}g", plan, _DEFAULT_VCPUS, _DEFAULT_MEMORY_MB // 1024)
+    logger.warning("docean_cloud: could not parse plan {!r}, defaulting to {}c{}g", plan, _DEFAULT_VCPUS, _DEFAULT_MEMORY_MB // 1024)
     return _DEFAULT_VCPUS, _DEFAULT_MEMORY_MB
 
 
@@ -73,7 +73,7 @@ def _sanitize_domain_name(name: str) -> str:
     return _DOMAIN_NAME_RE.sub("-", name)
 
 
-class BoweiCloudVpsClient(VpsClientInterface):
+class DoceanCloudVpsClient(VpsClientInterface):
     """VPS client that provisions nested-KVM VMs via a libvirt daemon.
 
     By default uses the local libvirt daemon. When ``libvirt_ssh_host`` is set,
@@ -159,7 +159,7 @@ class BoweiCloudVpsClient(VpsClientInterface):
             try:
                 return json.loads(path.read_text())
             except (json.JSONDecodeError, OSError) as e:
-                logger.warning("bowei_cloud: failed to read registry {}: {}", path, e)
+                logger.warning("docean_cloud: failed to read registry {}: {}", path, e)
                 return {}
         text = self._run_optional(["cat", str(self._registry_path)])
         if not text:
@@ -167,7 +167,7 @@ class BoweiCloudVpsClient(VpsClientInterface):
         try:
             return json.loads(text)
         except json.JSONDecodeError as e:
-            logger.warning("bowei_cloud: failed to parse remote registry: {}", e)
+            logger.warning("docean_cloud: failed to parse remote registry: {}", e)
             return {}
 
     def _save_registry(self, registry: dict[str, dict]) -> None:
@@ -263,7 +263,7 @@ class BoweiCloudVpsClient(VpsClientInterface):
         }
         self._save_registry(registry)
 
-        logger.info("Created bowei_cloud VM {} ({} vCPU, {} MB)", domain, vcpus, memory_mb)
+        logger.info("Created docean_cloud VM {} ({} vCPU, {} MB)", domain, vcpus, memory_mb)
         return VpsInstanceId(domain)
 
     def _ensure_images_dir(self) -> None:
@@ -287,7 +287,7 @@ class BoweiCloudVpsClient(VpsClientInterface):
         if self.libvirt_ssh_host is not None:
             import secrets
 
-            tmpdir = f"/tmp/bowei-seed-{secrets.token_hex(8)}"
+            tmpdir = f"/tmp/docean-seed-{secrets.token_hex(8)}"
             self._run(["mkdir", "-p", tmpdir], timeout=15.0)
             try:
                 self._write_remote_stdin(f"{tmpdir}/user-data", user_data)
@@ -369,7 +369,7 @@ class BoweiCloudVpsClient(VpsClientInterface):
         # Tear down the public-face DNAT so no SSH ports stay exposed.
         self.teardown_public_face_dnat()
         self._save_registry(registry)
-        logger.info("Destroyed bowei_cloud VM {}", domain)
+        logger.info("Destroyed docean_cloud VM {}", domain)
 
     def get_instance_status(self, instance_id: VpsInstanceId) -> VpsInstanceStatus:
         domain = str(instance_id)
@@ -451,25 +451,25 @@ class BoweiCloudVpsClient(VpsClientInterface):
         # `add chain`/`add rule` calls error if they already exist; we tolerate that
         # by running the whole script with check=False and ignoring stderr.
         setup = (
-            "add chain ip nat bowei_pubface\n"
-            "add rule ip nat PREROUTING jump bowei_pubface\n"
-            "add chain ip filter bowei_pubface_fwd\n"
-            "add rule ip filter FORWARD jump bowei_pubface_fwd\n"
+            "add chain ip nat docean_pubface\n"
+            "add rule ip nat PREROUTING jump docean_pubface\n"
+            "add chain ip filter docean_pubface_fwd\n"
+            "add rule ip filter FORWARD jump docean_pubface_fwd\n"
         )
         self._run_optional_nft(setup)
         # Per-VM rules: flush the dedicated chains, then add only the two SSH
         # forwards, restricted to allowed_ssh_cidr.
         rules = (
-            f"flush chain ip nat bowei_pubface\n"
-            f"add rule ip nat bowei_pubface iifname eth0 tcp dport {outer} ip saddr {qcidr} counter dnat to {private_ip}:22\n"
-            f"add rule ip nat bowei_pubface iifname eth0 tcp dport {cport} ip saddr {qcidr} counter dnat to {private_ip}:{cport}\n"
-            f"flush chain ip filter bowei_pubface_fwd\n"
-            f"add rule ip filter bowei_pubface_fwd ip saddr {qcidr} ip daddr {private_ip} oifname virbr0 counter accept\n"
+            f"flush chain ip nat docean_pubface\n"
+            f"add rule ip nat docean_pubface iifname eth0 tcp dport {outer} ip saddr {qcidr} counter dnat to {private_ip}:22\n"
+            f"add rule ip nat docean_pubface iifname eth0 tcp dport {cport} ip saddr {qcidr} counter dnat to {private_ip}:{cport}\n"
+            f"flush chain ip filter docean_pubface_fwd\n"
+            f"add rule ip filter docean_pubface_fwd ip saddr {qcidr} ip daddr {private_ip} oifname virbr0 counter accept\n"
         )
         if not self._run_optional_nft(rules):
             raise VpsProvisioningError(f"Failed to install public-face DNAT for {domain}")
         logger.info(
-            "bowei_cloud: wired public face {}:{}->{}:22 and {}:{}->{}:{} (cidr {})",
+            "docean_cloud: wired public face {}:{}->{}:22 and {}:{}->{}:{} (cidr {})",
             self.public_face_host, outer, private_ip, self.public_face_host, cport, private_ip, cport, cidr,
         )
 
@@ -480,7 +480,7 @@ class BoweiCloudVpsClient(VpsClientInterface):
             subprocess.run(cmd, input=ruleset, text=True, capture_output=True, timeout=30.0, check=True)
             return True
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
-            logger.debug("bowei_cloud: nft -f - failed (may be benign for idempotent setup): {}", e)
+            logger.debug("docean_cloud: nft -f - failed (may be benign for idempotent setup): {}", e)
             return False
 
     @property
@@ -492,8 +492,8 @@ class BoweiCloudVpsClient(VpsClientInterface):
         """Remove the public-face DNAT (called on destroy) so no ports stay exposed."""
         if not self._is_public_face:
             return
-        self._run(["nft", "flush", "chain", "ip", "nat", "bowei_pubface"], timeout=15.0)
-        self._run(["nft", "flush", "chain", "ip", "filter", "bowei_pubface_fwd"], timeout=15.0)
+        self._run(["nft", "flush", "chain", "ip", "nat", "docean_pubface"], timeout=15.0)
+        self._run(["nft", "flush", "chain", "ip", "filter", "docean_pubface_fwd"], timeout=15.0)
 
     def _get_domain_mac(self, domain: str) -> str | None:
         xml = self._run_optional(["virsh", "dumpxml", domain])
@@ -517,7 +517,7 @@ class BoweiCloudVpsClient(VpsClientInterface):
         return ""
 
     def list_instances(self) -> list[dict]:
-        """List all bowei_cloud-managed VMs with their tags + live IP.
+        """List all docean_cloud-managed VMs with their tags + live IP.
 
         Shape mirrors the Vultr client so the shared VPS discovery flow can
         filter by the ``mngr-provider=<name>`` tag and read ``main_ip``.
@@ -531,7 +531,7 @@ class BoweiCloudVpsClient(VpsClientInterface):
                 if mac is not None:
                     ip = self._get_ip_for_mac(mac) or "0.0.0.0"
             except Exception as e:  # noqa: BLE001
-                logger.debug("bowei_cloud: could not resolve IP for {}: {}", domain, e)
+                logger.debug("docean_cloud: could not resolve IP for {}: {}", domain, e)
             instances.append(
                 {
                     "name": domain,
@@ -582,11 +582,11 @@ class BoweiCloudVpsClient(VpsClientInterface):
             pass  # best-effort: the key is only a local no-op registry
 
     def upload_ssh_key(self, name: str, public_key: str) -> str:
-        key_id = f"bowei-{uuid.uuid4().hex[:8]}"
+        key_id = f"docean-{uuid.uuid4().hex[:8]}"
         keys = self._load_ssh_keys()
         keys[key_id] = {"name": name, "public_key": public_key}
         self._save_ssh_keys(keys)
-        logger.debug("bowei_cloud: recorded ssh key {} ({})", name, key_id)
+        logger.debug("docean_cloud: recorded ssh key {} ({})", name, key_id)
         return key_id
 
     def delete_ssh_key(self, key_id: str) -> None:

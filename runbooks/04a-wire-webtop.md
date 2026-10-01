@@ -1,6 +1,6 @@
 # 04a — Wire the webtop to the slices
 
-**Goal:** the webtop's Imbue Studio app lists + connects to the bowei_cloud
+**Goal:** the webtop's Imbue Studio app lists + connects to the docean_cloud
 slices, over the DO private network (no DNAT needed — the webtop is in the same
 VPC as the KVM host).
 
@@ -30,7 +30,7 @@ VPC as the KVM host).
 ```bash
 # on the webtop:
 MNGR_HOST_DIR=~/.minds/mngr MNGR_PREFIX=minds- ~/.mngr/.venv/bin/mngr list
-# expect: system-services  WAITING  <slice>  bowei-cloud  RUNNING  for each slice
+# expect: system-services  WAITING  <slice>  docean-cloud  RUNNING  for each slice
 nc -z -w5 192.168.122.160 2222   # the webtop can reach a slice's container sshd
 ```
 Then in the webtop's app (over VNC): click a slice → it lands past "loading

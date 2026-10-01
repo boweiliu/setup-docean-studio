@@ -1,6 +1,6 @@
 # 04b — Wire your local desktop to the slices
 
-**Goal:** your local machine's Imbue Studio app lists + connects to the bowei_cloud
+**Goal:** your local machine's Imbue Studio app lists + connects to the docean_cloud
 slices, over the public internet via per-VM DNAT (restricted to your IP).
 
 **Prereqs:** [`02-worker-slices`](02-worker-slices.md) with per-VM DNAT applied
@@ -16,7 +16,7 @@ your imbue cloud account (used only for sharing/relays, not compute).
    ./scripts/wire-client.sh slice-map.txt --latchkey --share --welcome
    ```
    This copies each slice's `container_ssh_key` + sshd host key to the app's mngr
-   home, adds an `[providers.bowei-cloud.hosts.<name>]` entry per slice to the
+   home, adds an `[providers.docean-cloud.hosts.<name>]` entry per slice to the
    app's `settings.toml`, restarts the app, and (with the flags) does latchkey +
    sharing + welcome.
 2. Restart the Imbue Studio app so the forward discovers the new providers.
@@ -26,7 +26,7 @@ your imbue cloud account (used only for sharing/relays, not compute).
 ```bash
 MINDS_HOME="$HOME/Library/Application Support/Imbue Studio/production"   # 0.8.x
 MNGR_HOST_DIR="$MINDS_HOME/mngr" MNGR_PREFIX=minds- "$MINDS_HOME/.venv/bin/mngr" list
-# expect: each slice listed as bowei-cloud RUNNING
+# expect: each slice listed as docean-cloud RUNNING
 nc -z -w5 "$KVM_PUB" 23001   # your DNAT'd port, from your IP
 ```
 Then in the app: click a slice → lands past "loading workspace".

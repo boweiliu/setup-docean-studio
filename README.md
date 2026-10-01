@@ -18,7 +18,7 @@ Everything else is auto-discovered or bundled:
 - Your public IP — discovered at run time.
 - The DO region + VPC — auto-selected.
 - The workspace template tag — defaults to the latest available `minds-v*` tag.
-- The `mngr_bowei_cloud` libvirt provider — bundled in [`provider/`](provider/).
+- The `mngr_docean_cloud` libvirt provider — bundled in [`provider/`](provider/).
 
 ## The flow
 
@@ -27,7 +27,7 @@ parallel** (wire whichever client you want — the webtop, your local desktop, o
 both); 5 is optional per-slice polish.
 
 1. [`01-kvm-host`](runbooks/01-kvm-host.md) — spawn a DO nested-KVM droplet + set up
-   libvirt, mngr, the `bowei_cloud` provider, and the workspace template.
+   libvirt, mngr, the `docean_cloud` provider, and the workspace template.
 2. [`02-worker-slices`](runbooks/02-worker-slices.md) — `mngr create` each slice
    (the VM + its docker container + services come up together).
 3. [`03-webtop`](runbooks/03-webtop.md) — spawn the desktop droplet + install the
@@ -49,9 +49,10 @@ piece without re-deriving it.
 
 ## Pointers
 
-- [`scripts/`](scripts/) — one helper script per step (`do.sh`, `kvm-host-setup.sh`,
-  `create-slice.sh`, `per-vm-dnat.sh`, `webtop-setup.sh`, `wire-client.sh`).
-- [`provider/`](provider/) — the vendored `mngr_bowei_cloud` libvirt provider.
+- [`scripts/`](scripts/) — helper scripts: `kvm-host-setup.sh`, `create-slice.sh`,
+  `per-vm-dnat.sh`, `cross-vpc.sh`, `webtop-setup.sh`, `wire-client.sh` (shared DO
+  helpers in `scripts/lib/do.sh`).
+- [`provider/`](provider/) — the vendored `mngr_docean_cloud` libvirt provider.
 - [`decisions/`](decisions/) — the "why" ledger + parked questions (what we tried
   that didn't work, and why).
 
@@ -60,7 +61,7 @@ piece without re-deriving it.
 Three-level nesting:
 
 ```
-DigitalOcean droplet (libvirt host, runs mngr + the bowei_cloud provider)
+DigitalOcean droplet (libvirt host, runs mngr + the docean_cloud provider)
 └─ nested-KVM VM  (Ubuntu cloud image, on the host's libvirt NAT 192.168.122.0/24)
    └─ docker container  (the workspace image: supervisord + chat/terminal/files/browser/…)
 ```

@@ -4,7 +4,7 @@
 (supervisord + chat/terminal/files/browser/…), reachable from a remote client.
 
 **Prereqs:** [`01-kvm-host`](01-kvm-host.md) done (the KVM host IP + mngr + the
-`bowei_cloud` create-template).
+`docean_cloud` create-template).
 
 ## Steps
 
@@ -12,8 +12,8 @@
    builds the workspace image, and starts supervisord — ~5-8 min each; do them
    **sequentially**, RAM is the binding constraint):
    ```bash
-   ./scripts/create-slice.sh "$PUB" bw-do-32x-080 4c16g
-   ./scripts/create-slice.sh "$PUB" bw-do-32f1-080 2c8g
+   ./scripts/create-slice.sh "$PUB" do-32x-080 4c16g
+   ./scripts/create-slice.sh "$PUB" do-32f1-080 2c8g
    # plans: 2c8g, 2c6g, 1c2g (microtest), 4c16g, ...
    ```
    Capture each slice's VM IP from the create JSON (`ssh_host`) + its
@@ -40,7 +40,7 @@
 
 ```bash
 MNGR_HOST_DIR=/root/.mngr MNGR_PREFIX=minds- ssh root@"$PUB" \
-  '/root/mngr/.venv/bin/mngr exec system-services@bw-do-32x-080.bowei_cloud "supervisorctl status | grep -c RUNNING"'
+  '/root/mngr/.venv/bin/mngr exec system-services@do-32x-080.docean_cloud "supervisorctl status | grep -c RUNNING"'
 # expect: ~16-17
 nc -z -w5 "$PUB" 23001   # from the client: the DNAT'd port is open
 ```
@@ -49,7 +49,7 @@ nc -z -w5 "$PUB" 23001   # from the client: the DNAT'd port is open
 
 - **Sequential creates** — a concurrent build spikes CPU + needs the 80G disk
   headroom each; create one at a time, then run concurrently.
-- **Per-VM DNAT, not the provider's auto public-face** — the `bowei_cloud`
+- **Per-VM DNAT, not the provider's auto public-face** — the `docean_cloud`
   provider's `public_face_host` DNAT is single-VM (it flushes + re-points to the
   latest VM). For multiple slices on one host use `per-vm-dnat.sh` (manual nft,
   one port per VM, persisted). Fresh DO hosts lack `ip nat PREROUTING` — the

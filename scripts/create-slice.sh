@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Create one bowei_cloud slice on a KVM host (standard way) + verify supervisord.
+# Create one docean_cloud slice on a KVM host (standard way) + verify supervisord.
 #   create-slice.sh <kvm-host-ip> <name> <plan>
 # plan examples: 2c8g, 2c6g, 1c2g
 set -euo pipefail
@@ -15,10 +15,10 @@ export MNGR_HOST_DIR=/root/.mngr
 export MNGR_PREFIX=minds-
 MN=/root/mngr/.venv/bin/mngr
 # set the plan for this create (default_plan is the fallback; --plan overrides per-host)
-$MN config set --scope user providers.bowei_cloud.default_plan "$PLAN"
-echo "==> creating $NAME ($PLAN) on bowei_cloud (build ~5-8 min)..."
-$MN create system-services@${NAME}.bowei_cloud --new-host \
-  --template main --template bowei_cloud \
+$MN config set --scope user providers.docean_cloud.default_plan "$PLAN"
+echo "==> creating $NAME ($PLAN) on docean_cloud (build ~5-8 min)..."
+$MN create system-services@${NAME}.docean_cloud --new-host \
+  --template main --template docean_cloud \
   --branch :mngr/${NAME} \
   --label workspace_display_name=${NAME} --label is_primary=true --label user_created=true \
   --no-ensure-clean --format jsonl --no-connect 2>&1 | tee /tmp/create-${NAME}.jsonl

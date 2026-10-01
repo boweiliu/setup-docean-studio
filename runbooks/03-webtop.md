@@ -11,7 +11,7 @@ a client).
 1. Spawn a box (e.g. `s-4vcpu-8gb-amd`):
    ```bash
    source scripts/lib/do.sh
-   read -r ID PUB PRIV < <(do_spawn bowei-webtop s-4vcpu-8gb-amd)
+   read -r ID PUB PRIV < <(do_spawn docean-webtop s-4vcpu-8gb-amd)
    ```
 2. Provision it (creates a `studio` user, installs Xvfb/x11vnc/websockify/openbox,
    installs the Imbue Studio app from source at the latest `minds-v*` tag, writes a

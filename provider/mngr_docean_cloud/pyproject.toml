@@ -1,7 +1,7 @@
 [project]
-name = "imbue-mngr-bowei-cloud"
+name = "imbue-mngr-docean-cloud"
 version = "0.1.0"
-description = "bowei_cloud provider backend for mngr: nested-KVM/libvirt VMs on a single host"
+description = "docean_cloud provider backend for mngr: nested-KVM/libvirt VMs on a single host"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.entry-points.mngr]
-bowei_cloud = "imbue.mngr_bowei_cloud.backend"
+docean_cloud = "imbue.mngr_docean_cloud.backend"
 
 [build-system]
 requires = ["hatchling"]

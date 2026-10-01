@@ -26,15 +26,15 @@ from imbue.mngr_vps.build_args import ParsedVpsBuildOptions
 from imbue.mngr_vps.build_args import parse_vps_build_args
 from imbue.mngr_vps.instance import VpsProvider
 from imbue.mngr_vps.primitives import VpsInstanceId
-from imbue.mngr_bowei_cloud import hookimpl
-from imbue.mngr_bowei_cloud.client import BoweiCloudVpsClient
-from imbue.mngr_bowei_cloud.config import BoweiCloudProviderConfig
+from imbue.mngr_docean_cloud import hookimpl
+from imbue.mngr_docean_cloud.client import DoceanCloudVpsClient
+from imbue.mngr_docean_cloud.config import DoceanCloudProviderConfig
 
-BOWEI_CLOUD_BACKEND_NAME: Final[ProviderBackendName] = ProviderBackendName("bowei_cloud")
+DOCEAN_CLOUD_BACKEND_NAME: Final[ProviderBackendName] = ProviderBackendName("docean_cloud")
 
 
-class BoweiCloudProvider(VpsProvider):
-    """bowei_cloud provider: nested-KVM/libvirt VMs on a single host.
+class DoceanCloudProvider(VpsProvider):
+    """docean_cloud provider: nested-KVM/libvirt VMs on a single host.
 
     All cross-VPS discovery machinery (parallel SSH reads, caching, per-name
     lookups) is inherited from ``VpsProvider``; this subclass only contributes
@@ -43,20 +43,20 @@ class BoweiCloudProvider(VpsProvider):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    bowei_client: BoweiCloudVpsClient = Field(frozen=True, description="libvirt-backed VPS client")
-    bowei_config: BoweiCloudProviderConfig = Field(frozen=True, description="bowei_cloud configuration")
+    docean_client: DoceanCloudVpsClient = Field(frozen=True, description="libvirt-backed VPS client")
+    docean_config: DoceanCloudProviderConfig = Field(frozen=True, description="docean_cloud configuration")
 
     def _fetch_provider_instances(self) -> list[dict[str, Any]]:
-        """List every bowei_cloud VM from the local libvirt registry."""
-        return self.bowei_client.list_instances()
+        """List every docean_cloud VM from the local libvirt registry."""
+        return self.docean_client.list_instances()
 
     def _parse_build_args(self, build_args: Sequence[str] | None) -> ParsedVpsBuildOptions:
-        """Parse bowei-cloud-prefixed build args (--bowei-cloud-region, --bowei-cloud-plan, --git-depth)."""
+        """Parse docean-cloud-prefixed build args (--docean-cloud-region, --docean-cloud-plan, --git-depth)."""
         return parse_vps_build_args(
             build_args,
-            provider_prefix="bowei-cloud",
-            default_region=self.bowei_config.default_region,
-            default_plan=self.bowei_config.default_plan,
+            provider_prefix="docean-cloud",
+            default_region=self.docean_config.default_region,
+            default_plan=self.docean_config.default_plan,
             plan_arg_name="plan",
         )
 
@@ -67,14 +67,14 @@ class BoweiCloudProvider(VpsProvider):
         unreachable from where mngr runs (e.g. a remote Mac with no route to the
         NAT net), so probing them would always fail and the workspace would never
         appear in ``mngr list``. The public-face DNAT forwards the KVM host's
-        public IP to exactly one VM (the single-VM design: the ``bowei_pubface``
+        public IP to exactly one VM (the single-VM design: the ``docean_pubface``
         nft chain is flushed + re-pointed per create), so in public-face mode we
         probe only that public host -- discovery + the host object's container
         endpoint both key off this hostname, so they reach the VM through the
         DNAT (outer :public_outer_port, container :container_ssh_port).
         """
         if self._is_public_face:
-            return [self.bowei_config.public_face_host]  # type: ignore[list-item]
+            return [self.docean_config.public_face_host]  # type: ignore[list-item]
         provider_tag = f"mngr-provider={self.name}"
         instances = self._list_instances_cached()
         vps_ips: list[str] = []
@@ -97,10 +97,10 @@ class BoweiCloudProvider(VpsProvider):
 
     @property
     def _is_public_face(self) -> bool:
-        return self.bowei_config.public_face_host is not None
+        return self.docean_config.public_face_host is not None
 
     def _outer_ssh_port(self) -> int:
-        return self.bowei_config.public_outer_port if self._is_public_face else 22
+        return self.docean_config.public_outer_port if self._is_public_face else 22
 
     @contextmanager
     def _make_outer_for_vps_ip(self, vps_ip: str) -> Iterator[OuterHostInterface]:
@@ -137,8 +137,8 @@ class BoweiCloudProvider(VpsProvider):
         if self._is_public_face:
             add_host_to_known_hosts(
                 known_hosts_path=self._vps_known_hosts_path(),
-                hostname=self.bowei_config.public_face_host,
-                port=self.bowei_config.public_outer_port,
+                hostname=self.docean_config.public_face_host,
+                port=self.docean_config.public_outer_port,
                 public_key=vps_host_public_key,
                 host_id=host_id,
             )
@@ -147,12 +147,12 @@ class BoweiCloudProvider(VpsProvider):
         )
 
 
-class BoweiCloudProviderBackend(ProviderBackendInterface):
-    """Backend for creating bowei_cloud (nested-KVM) VPS provider instances."""
+class DoceanCloudProviderBackend(ProviderBackendInterface):
+    """Backend for creating docean_cloud (nested-KVM) VPS provider instances."""
 
     @staticmethod
     def get_name() -> ProviderBackendName:
-        return BOWEI_CLOUD_BACKEND_NAME
+        return DOCEAN_CLOUD_BACKEND_NAME
 
     @staticmethod
     def get_description() -> str:
@@ -160,14 +160,14 @@ class BoweiCloudProviderBackend(ProviderBackendInterface):
 
     @staticmethod
     def get_config_class() -> type[ProviderInstanceConfig]:
-        return BoweiCloudProviderConfig
+        return DoceanCloudProviderConfig
 
     @staticmethod
     def get_build_args_help() -> str:
         return (
-            "bowei_cloud-specific args (consumed by provider, not passed to docker):\n"
-            "  --bowei-cloud-region=REGION  libvirt host (cosmetic; default: local)\n"
-            "  --bowei-cloud-plan=PLAN     VM size as <vcpus>c<ram_gb>g (default: 2c4g)\n"
+            "docean_cloud-specific args (consumed by provider, not passed to docker):\n"
+            "  --docean-cloud-region=REGION  libvirt host (cosmetic; default: local)\n"
+            "  --docean-cloud-plan=PLAN     VM size as <vcpus>c<ram_gb>g (default: 2c4g)\n"
             "  --git-depth=N                Shallow-clone build context to depth N\n"
             "\n"
             "All other build args are passed to 'docker build' inside the VM.\n"
@@ -183,12 +183,12 @@ class BoweiCloudProviderBackend(ProviderBackendInterface):
         config: ProviderInstanceConfig,
         mngr_ctx: MngrContext,
     ) -> ProviderInstanceInterface:
-        if not isinstance(config, BoweiCloudProviderConfig):
+        if not isinstance(config, DoceanCloudProviderConfig):
             from imbue.mngr.errors import MngrError
 
-            raise MngrError(f"Expected BoweiCloudProviderConfig, got {type(config).__name__}")
+            raise MngrError(f"Expected DoceanCloudProviderConfig, got {type(config).__name__}")
 
-        bowei_client = BoweiCloudVpsClient(
+        docean_client = DoceanCloudVpsClient(
             base_image=config.base_image,
             images_dir=config.images_dir,
             network=config.network,
@@ -200,18 +200,18 @@ class BoweiCloudProviderBackend(ProviderBackendInterface):
             container_ssh_port=config.container_ssh_port,
         )
 
-        return BoweiCloudProvider(
+        return DoceanCloudProvider(
             name=name,
             host_dir=config.host_dir,
             mngr_ctx=mngr_ctx,
             config=config,
-            vps_client=bowei_client,
-            bowei_client=bowei_client,
-            bowei_config=config,
+            vps_client=docean_client,
+            docean_client=docean_client,
+            docean_config=config,
         )
 
 
 @hookimpl
 def register_provider_backend() -> tuple[type[ProviderBackendInterface], type[ProviderInstanceConfig]]:
-    """Register the bowei_cloud provider backend."""
-    return (BoweiCloudProviderBackend, BoweiCloudProviderConfig)
+    """Register the docean_cloud provider backend."""
+    return (DoceanCloudProviderBackend, DoceanCloudProviderConfig)

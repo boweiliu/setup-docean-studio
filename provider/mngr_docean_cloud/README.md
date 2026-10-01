@@ -1,4 +1,4 @@
-# mngr bowei_cloud provider
+# mngr docean_cloud provider
 
 A custom `mngr` provider backend that runs agents on nested-KVM virtual machines
 managed by **libvirt** on a single host (e.g. a DigitalOcean droplet with nested
@@ -11,7 +11,7 @@ container realizer / provisioning / discovery machinery.
 
 ## How it works
 
-- `create_host` asks the `bowei_cloud` `VpsClient` to provision a VM:
+- `create_host` asks the `docean_cloud` `VpsClient` to provision a VM:
   - a copy-on-write qcow2 overlay on top of a cloud-init-enabled base image
     (Ubuntu cloud image by default),
   - a NoCloud seed ISO carrying the cloud-init `user-data` mngr generates
@@ -25,14 +25,14 @@ container realizer / provisioning / discovery machinery.
 ## Configuration
 
 ```toml
-[providers.bowei_cloud]
-backend = "bowei_cloud"
+[providers.docean_cloud]
+backend = "docean_cloud"
 # base cloud image (qcow2) to use as the qcow2 backing file
 base_image = "/var/lib/libvirt/images/ubuntu-24.04-server-cloudimg-amd64.img"
 # default VM size, parsed as "<vcpus>c<ram_gb>g" (e.g. "2c4g")
 default_plan = "2c4g"
 # directory for per-VM disks, seed ISOs and the instance registry
-images_dir = "/var/lib/libvirt/images/bowei_cloud"
+images_dir = "/var/lib/libvirt/images/docean_cloud"
 # libvirt network to attach VMs to (must provide DHCP + outbound NAT)
 network = "default"
 # gigabytes held back from the in-VM btrfs loop file (see mngr_vps docs)

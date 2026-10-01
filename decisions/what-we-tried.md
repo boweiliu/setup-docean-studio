@@ -2,12 +2,12 @@
 
 A ledger of the dead-ends, so they don't get re-walked.
 
-## Desktop-app launch-mode patch (to *create* on bowei_cloud) — NOT USED
+## Desktop-app launch-mode patch (to *create* on docean_cloud) — NOT USED
 
 We wrote a patch to the Imbue Studio desktop app (`primitives.py` `LaunchMode`
 enum + `agent_creator.py` match-cases) so the app could *create* workspaces on
-`bowei_cloud` directly. **Not used** — the app's create command for bowei_cloud
-stacked only `--template main` (no `bowei_cloud` overlay) → bare debian → 503,
+`docean_cloud` directly. **Not used** — the app's create command for docean_cloud
+stacked only `--template main` (no `docean_cloud` overlay) → bare debian → 503,
 and the clean path turned out to be: **CLI `mngr create`** provisions the slice,
 and the app **connects** to it via the built-in `ssh` provider (no app patching, no
 plugin on the client). Kept the Mac/webtop app pristine.
@@ -15,17 +15,17 @@ plugin on the client). Kept the Mac/webtop app pristine.
 ## Pre-bake / registry path — NOT NEEDED
 
 The runbook's "pre-bake" path (build the workspace image once, push to a
-registry, set `default_image` + a `bowei_cloud_prebuilt` template so the realizer
+registry, set `default_image` + a `docean_cloud_prebuilt` template so the realizer
 pulls instead of building) was scoped for 2c8g boxes that "can't run the
 from-scratch build". **Turned out unnecessary** — the dwt Dockerfile build
 completes even in a 1c2g VM (slow, heavy swap, but it finishes). So no registry,
 no pre-bake; every size can from-scratch build. (A one-line note in
 `02-worker-slices.md` if you want faster creates.)
 
-## Single-VM `bowei_pubface` DNAT — SUPERSEDED
+## Single-VM `docean_pubface` DNAT — SUPERSEDED
 
-The `bowei_cloud` provider's `public_face_host` DNAT is single-VM: it flushes +
-re-points the `bowei_pubface` chain to the latest-provisioned VM. With multiple
+The `docean_cloud` provider's `public_face_host` DNAT is single-VM: it flushes +
+re-points the `docean_pubface` chain to the latest-provisioned VM. With multiple
 slices on one host that fights (last VM wins). **Superseded by per-VM DNAT**
 (`scripts/per-vm-dnat.sh`): a unique public port per VM, `nft add` (not flush),
 persisted via a systemd oneshot. Multi-source allow (your IP + extra CIDRs) is
@@ -44,4 +44,4 @@ Finish-notifs use `LATCHKEY_GATEWAY`, not the connector URL. Reverted.
   Imbue Studio/production` on macOS) that broke absolute `key_file` paths — the
   scripts now auto-detect the data dir.
 - The bare-debian 503 "loading workspace" root cause — now just "add the
-  `[create_templates.bowei_cloud]` block" (the setup script does it).
+  `[create_templates.docean_cloud]` block" (the setup script does it).

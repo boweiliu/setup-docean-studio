@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wire a client's Imbue Studio app to a set of bowei_cloud slices: copy each
+# Wire a client's Imbue Studio app to a set of docean_cloud slices: copy each
 # slice's container SSH key + sshd host key, add an ssh-provider host entry per
 # slice to the app's settings.toml, then (optionally) latchkey + sharing + welcome.
 #
@@ -28,8 +28,8 @@ MH="${MINDS_HOME:-$HOME/Library/Application Support/Imbue Studio/production}"
 [ -d "$MH/mngr" ] || MH="$HOME/.minds"   # 0.7.x fallback
 PROF="$(ls "$MH/mngr/profiles" | head -1)"
 SET="$MH/mngr/profiles/$PROF/settings.toml"
-KEYBASE="$MH/mngr/profiles/$PROF/providers/bowei_cloud/bowei_cloud/keys/host_keys"
-KH="$MH/mngr/profiles/$PROF/providers/bowei_cloud/known_hosts_bw_do"
+KEYBASE="$MH/mngr/profiles/$PROF/providers/docean_cloud/docean_cloud/keys/host_keys"
+KH="$MH/mngr/profiles/$PROF/providers/docean_cloud/known_hosts_bw_do"
 MN="$MH/.venv/bin/mngr"
 export MNGR_HOST_DIR="$MH/mngr" MNGR_PREFIX=minds-
 
@@ -47,7 +47,7 @@ import sys,pathlib
 setf,keybase,kh,name,ip,port,hid=sys.argv[1:8]
 p=pathlib.Path(setf); s=p.read_text()
 entry=f'''
-[providers.bowei-cloud.hosts.{name}]
+[providers.docean-cloud.hosts.{name}]
 address = "{ip}"
 port = {port}
 user = "root"
@@ -74,12 +74,12 @@ if [ "$DO_LATCHKEY" = 1 ]; then
   grep -vE '^\s*(#|$)' "$MAPFILE" | while IFS=' ' read -r name ip port kpath; do
     [ -z "$name" ] && continue
     hid=$(basename "$(dirname "$kpath")")
-    # latchkey host id = the ssh-provider uuid5("bowei-cloud:<name>"); find it in the forward log
+    # latchkey host id = the ssh-provider uuid5("docean-cloud:<name>"); find it in the forward log
     SSHID=$(grep -oE "agent-[0-9a-f]+ on host host-[0-9a-f]+" "$HOME/Library/Logs/Imbue Studio/production/minds-events.jsonl" 2>/dev/null | head -1 | grep -oE "host-[0-9a-f]+")
     [ -z "$SSHID" ] && { echo "  $name: could not resolve latchkey host id (open the workspace in the app first)"; continue; }
     MNGR_HOST_DIR="$TMP" MNGR_PROFILE=_ "$MN" latchkey link-permissions --host-id "$SSHID" --opaque-path "$OPAQUE" \
       --latchkey-directory "$LATCHDIR" --latchkey-binary "$LATCHBIN" >/dev/null
-    "$MN" exec system-services@${name}.bowei-cloud "
+    "$MN" exec system-services@${name}.docean-cloud "
       grep -v '^LATCHKEY_' /mngr/env > /tmp/e 2>/dev/null || true; printf '%s\n' '$ENVJSON' >> /tmp/e; mv /tmp/e /mngr/env
       cd /home/user/workspace; set -a; . /mngr/env; set +a
       nohup setsid supervisord -n -c system/supervisord.conf >/var/log/supervisord.log 2>&1 </dev/null & sleep 7
@@ -119,9 +119,9 @@ if [ "$DO_WELCOME" = 1 ]; then
   echo "==> welcome: seed a welcome chat (per slice)"
   grep -vE '^\s*(#|$)' "$MAPFILE" | while IFS=' ' read -r name ip port kpath; do
     [ -z "$name" ] && continue
-    "$MN" exec system-services@${name}.bowei-cloud "
+    "$MN" exec system-services@${name}.docean-cloud "
       cd /home/user/workspace
-      BODY=\$(python3 -c \"import json,base64; t={'title':'Welcome to $name','turns':[{'role':'assistant','text':'Welcome! This is the $name workspace on bowei_cloud.'}]}; print(base64.b64encode(json.dumps(t).encode()).decode())\")
+      BODY=\$(python3 -c \"import json,base64; t={'title':'Welcome to $name','turns':[{'role':'assistant','text':'Welcome! This is the $name workspace on docean_cloud.'}]}; print(base64.b64encode(json.dumps(t).encode()).decode())\")
       python3 system/scripts/seed_welcome_chat.py --transcript-base64 \"\$BODY\" 2>&1 | tail -1
     " 2>&1 | grep -vE "WARNING|isolate" | tail -1
     echo "  $name: welcome chat seeded"
